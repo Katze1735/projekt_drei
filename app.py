@@ -1,58 +1,46 @@
 import streamlit as st
-from transformers import SegformerImageProcessor, AutoModelForSemanticSegmentation
+from transformers import AutoImageProcessor, AutoModelForImageClassification
 from PIL import Image
 import torch
-import torch.nn as nn
-import numpy as np
-import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Clothes Segmentation AI", layout="wide")
+st.set_page_config(page_title="Clothing Identifier", layout="centered")
 
-st.title("👕 Clothes Detection with SegFormer")
-st.write("Upload an image and the AI will identify clothing regions.")
+st.title("👕 Clothing Item Identifier")
+st.write("Upload an image and the AI will identify the clothing item.")
 
 @st.cache_resource
 def load_model():
-    processor = SegformerImageProcessor.from_pretrained(
-        "mattmdjaga/segformer_b2_clothes"
+    processor = AutoImageProcessor.from_pretrained(
+        "wargoninnovation/wargon-clothing-classifier"
     )
-    model = AutoModelForSemanticSegmentation.from_pretrained(
-        "mattmdjaga/segformer_b2_clothes"
+    model = AutoModelForImageClassification.from_pretrained(
+        "wargoninnovation/wargon-clothing-classifier"
     )
     return processor, model
 
 processor, model = load_model()
 
-uploaded_file = st.file_uploader("Upload a photo", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader(
+    "Upload an image",
+    type=["jpg", "jpeg", "png"]
+)
 
 if uploaded_file:
 
     image = Image.open(uploaded_file).convert("RGB")
 
-    st.image(image, caption="Original Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    with st.spinner("Analyzing clothes..."):
+    with st.spinner("Analyzing clothing..."):
 
         inputs = processor(images=image, return_tensors="pt")
 
-        outputs = model(**inputs)
+        with torch.no_grad():
+            outputs = model(**inputs)
 
-        logits = outputs.logits.cpu()
+        logits = outputs.logits
+        predicted_class_id = logits.argmax(-1).item()
 
-        upsampled_logits = nn.functional.interpolate(
-            logits,
-            size=image.size[::-1],
-            mode="bilinear",
-            align_corners=False,
-        )
+        label = model.config.id2label[predicted_class_id]
 
-        pred_seg = upsampled_logits.argmax(dim=1)[0].numpy()
-
-        fig, ax = plt.subplots()
-        ax.imshow(image)
-        ax.imshow(pred_seg, alpha=0.5)
-        ax.axis("off")
-
-        st.pyplot(fig)
-
-        st.success("Clothing segmentation complete!")
+    st.success(f"Detected clothing item: **{label}**")

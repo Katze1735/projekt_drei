@@ -8,6 +8,37 @@ st.set_page_config(page_title="Clothing Identifier", layout="centered")
 st.title("👕 Clothing Item Identifier")
 st.write("Upload an image and the AI will identify the clothing item.")
 
+# Your tag list (index = model output)
+CLOTHING_LABELS = [
+    "Blazer",
+    "Blouse",
+    "Cardigan",
+    "Dress",
+    "Hoodie",
+    "Jacket",
+    "Jeans",
+    "Nightgown",
+    "Outerwear",
+    "Pajamas",
+    "Rain jacket",
+    "Rain trousers",
+    "Robe",
+    "Shirt",
+    "Shorts",
+    "Skirt",
+    "Sweater",
+    "T-shirt",
+    "Tank top",
+    "Tights",
+    "Top",
+    "Training top",
+    "Trousers",
+    "Tunic",
+    "Vest",
+    "Winter jacket",
+    "Winter trousers",
+]
+
 @st.cache_resource
 def load_model():
     processor = AutoImageProcessor.from_pretrained(
@@ -41,6 +72,7 @@ if uploaded_file:
         logits = outputs.logits
         predicted_class_id = logits.argmax(-1).item()
 
-        label = model.config.id2label[predicted_class_id]
+        # Convert index → label
+        label = CLOTHING_LABELS[predicted_class_id]
 
     st.success(f"Detected clothing item: **{label}**")

@@ -1,55 +1,20 @@
 import streamlit as st
-from transformers import AutoImageProcessor, AutoModelForImageClassification
+from ultralytics import YOLO
 from PIL import Image
-import torch
+import numpy as np
 
-st.set_page_config(page_title="Clothing Identifier", layout="centered")
+st.set_page_config(page_title="Clothing Detection", layout="centered")
 
-st.title("👕 Clothing Item Identifier")
-st.write("Upload an image and the AI will identify the clothing item.")
+st.title("👕 Clothing Detection with YOLO")
+st.write("Upload an image to detect clothing items.")
 
-# Your tag list (index = model output)
-CLOTHING_LABELS = [
-    "Blazer",
-    "Blouse",
-    "Cardigan",
-    "Dress",
-    "Hoodie",
-    "Jacket",
-    "Jeans",
-    "Nightgown",
-    "Outerwear",
-    "Pajamas",
-    "Rain jacket",
-    "Rain trousers",
-    "Robe",
-    "Shirt",
-    "Shorts",
-    "Skirt",
-    "Sweater",
-    "T-shirt",
-    "Tank top",
-    "Tights",
-    "Top",
-    "Training top",
-    "Trousers",
-    "Tunic",
-    "Vest",
-    "Winter jacket",
-    "Winter trousers",
-]
-
+# Load model
 @st.cache_resource
 def load_model():
-    processor = AutoImageProcessor.from_pretrained(
-        "wargoninnovation/wargon-clothing-classifier"
-    )
-    model = AutoModelForImageClassification.from_pretrained(
-        "wargoninnovation/wargon-clothing-classifier"
-    )
-    return processor, model
+    model = YOLO("yolov8n.pt")  # your clothing detection model
+    return model
 
-processor, model = load_model()
+model = load_model()
 
 uploaded_file = st.file_uploader(
     "Upload an image",
@@ -59,20 +24,28 @@ uploaded_file = st.file_uploader(
 if uploaded_file:
 
     image = Image.open(uploaded_file).convert("RGB")
-
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    with st.spinner("Analyzing clothing..."):
+    if st.button("Detect Clothing"):
 
-        inputs = processor(images=image, return_tensors="pt")
+        with st.spinner("Running YOLO detection..."):
 
-        with torch.no_grad():
-            outputs = model(**inputs)
+            results = model(image)
 
-        logits = outputs.logits
-        predicted_class_id = logits.argmax(-1).item()
+            result_image = results[0].plot()
 
-        # Convert index → label
-        label = CLOTHING_LABELS[predicted_class_id]
+            st.image(result_image, caption="Detected Clothing", use_column_width=True)
 
-    st.success(f"Detected clothing item: **{label}**")
+            boxes = results[0].boxes
+            names = model.names
+
+            st.subheader("Detected items:")
+
+            detected = set()
+
+            for box in boxes:
+                class_id = int(box.cls)
+                detected.add(names[class_id])
+
+            for item in detected:
+                st.write(f"• {item}")

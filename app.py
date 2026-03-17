@@ -1,51 +1,54 @@
 import streamlit as st
-from ultralytics import YOLO
 from PIL import Image
 import numpy as np
+from ultralytics import YOLO
+import cv2
 
-st.set_page_config(page_title="Clothing Detection", layout="centered")
-
-st.title("👕 Clothing Detection with YOLO")
-st.write("Upload an image to detect clothing items.")
-
-# Load model
+# Load YOLOv8 World v2 model (will download automatically if not present)
 @st.cache_resource
 def load_model():
-    model = YOLO("yolov8s-worldv2.pt")  # your clothing detection model
+    model = YOLO("yolov8x-worldv2.pt")
     return model
 
 model = load_model()
 
-uploaded_file = st.file_uploader(
-    "Upload an image",
-    type=["jpg", "jpeg", "png"]
-)
+st.title("YOLOv8 World v2 Object Detection App")
 
-if uploaded_file:
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-    image = Image.open(uploaded_file).convert("RGB")
+if uploaded_file is not None:
+    # Load image
+    image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    if st.button("Detect Clothing"):
+    # Convert to numpy array
+    image_np = np.array(image)
 
-        with st.spinner("Running YOLO detection..."):
+    # Run inference
+    results = model(image_np)
 
-            results = model(image)
+    # Get annotated image
+    annotated_frame = results[0].plot()
 
-            result_image = results[0].plot()
+    # Convert BGR to RGB for Streamlit display
+    annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
 
-            st.image(result_image, caption="Detected Clothing", use_column_width=True)
+    st.image(annotated_frame, caption="Detected Objects", use_column_width=True)
 
-            boxes = results[0].boxes
-            names = model.names
+    # Display detected objects
+    st.subheader("Detected Objects")
 
-            st.subheader("Detected items:")
+    boxes = results[0].boxes
 
-            detected = set()
+    if boxes is not None:
+        for box in boxes:
+            cls_id = int(box.cls[0])
+            conf = float(box.conf[0])
+            class_name = model.names[cls_id]
 
-            for box in boxes:
-                class_id = int(box.cls)
-                detected.add(names[class_id])
+            st.write(f"{class_name}: {conf:.2f}")
+    else:
+        st.write("No objects detected.")
 
-            for item in detected:
-                st.write(f"• {item}")
+st.markdown("---")
+st.markdown("Built with Streamlit and YOLOv8 World v2")

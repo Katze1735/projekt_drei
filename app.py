@@ -11,7 +11,7 @@ st.write("Upload an image to detect clothing items.")
 # Load model
 @st.cache_resource
 def load_model():
-    model = YOLO("yolov8n.pt")  # your clothing detection model
+    model = YOLO("yolov8s-worldv2.pt")  # your clothing detection model
     return model
 
 model = load_model()
